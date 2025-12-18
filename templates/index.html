@@ -53,8 +53,9 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    .btn:hover {
-      background-color: #0056b3;
+    .btn:disabled {
+      background-color: #9ec5ff;
+      cursor: not-allowed;
     }
     #loadingSpinner {
       display: none;
@@ -68,36 +69,50 @@
       font-size: 14px;
       color: #555;
     }
+    #errorMsg {
+      margin-top: 10px;
+      color: red;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
-  <h2>✨ Grammar Checker</h2>
-  <div class="container">
-    <!-- Input Panel -->
-    <div class="panel">
-      <h3>📝 Your Text</h3>
-      <div id="inputText" contenteditable="true" class="editable" placeholder="Paste or write your content here..."></div>
-      <div class="stats">
-        Words: <span id="wordCount">0</span> |
-        Accuracy: <span id="accuracy">-</span>
-      </div>
-      <button class="btn" onclick="checkGrammar()">Check Grammar</button>
-      <div id="loadingSpinner">🔄 Checking grammar...</div>
+
+<h2>✨ Grammar Checker</h2>
+
+<div class="container">
+
+  <!-- Input Panel -->
+  <div class="panel">
+    <h3>📝 Your Text</h3>
+    <div id="inputText" contenteditable="true" class="editable"
+         placeholder="Paste or write your content here..."></div>
+
+    <div class="stats">
+      Words: <span id="wordCount">0</span> |
+      Accuracy: <span id="accuracy">-</span>
     </div>
 
-    <!-- Output Panel -->
-    <div class="panel">
-      <h3>✅ Corrected Text</h3>
-      <div id="correctedText"></div>
-      <button class="btn" onclick="copyText()">📋 Copy</button>
-      <button class="btn" onclick="downloadText()">⬇️ Download</button>
-    </div>
+    <button class="btn" id="checkBtn" onclick="checkGrammar()">Check Grammar</button>
+    <div id="loadingSpinner">🔄 Checking grammar...</div>
+    <div id="errorMsg"></div>
   </div>
 
-  <script>
-  const contentDiv = document.getElementById("inputText");
+  <!-- Output Panel -->
+  <div class="panel">
+    <h3>✅ Corrected Text</h3>
+    <div id="correctedText"></div>
+    <button class="btn" onclick="copyText()">📋 Copy</button>
+    <button class="btn" onclick="downloadText()">⬇️ Download</button>
+  </div>
 
-  // ✅ Update word count on typing and pasting
+</div>
+
+<script>
+  const contentDiv = document.getElementById("inputText");
+  const checkBtn = document.getElementById("checkBtn");
+  const errorMsg = document.getElementById("errorMsg");
+
   function updateWordCount() {
     const text = contentDiv.innerText || '';
     const count = text.trim().split(/\s+/).filter(Boolean).length;
@@ -105,61 +120,64 @@
   }
 
   contentDiv.addEventListener("keyup", updateWordCount);
-  contentDiv.addEventListener("paste", () => {
-    setTimeout(updateWordCount, 10); // allow paste content to register
-  });
+  contentDiv.addEventListener("paste", () => setTimeout(updateWordCount, 10));
 
-  // ✅ Grammar Check Function
   async function checkGrammar() {
-    const rawText = contentDiv.innerText;
+    const rawText = contentDiv.innerText.trim();
+    if (!rawText) return;
 
-    if (!rawText.trim()) return;
-
+    errorMsg.innerText = "";
+    checkBtn.disabled = true;
     document.getElementById("loadingSpinner").style.display = "block";
-    document.getElementById("accuracy").innerText = '-';
-    document.getElementById("correctedText").innerHTML = '';
+    document.getElementById("accuracy").innerText = "-";
+    document.getElementById("correctedText").innerHTML = "";
 
-    const res = await fetch('/check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: rawText })
-    });
+    try {
+      const res = await fetch("/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: rawText })
+      });
 
-    const data = await res.json();
-    document.getElementById("loadingSpinner").style.display = "none";
+      const data = await res.json();
 
-    // Highlighted input and output
-    contentDiv.innerHTML = data.highlighted_input;
-    document.getElementById("correctedText").innerHTML = data.highlighted_output;
+      if (data.error) {
+        errorMsg.innerText = data.error;
+        return;
+      }
 
-    // Update Stats
-    document.getElementById("wordCount").innerText = data.word_count;
-    document.getElementById("accuracy").innerText = `${data.accuracy_percent}%`;
+      contentDiv.innerHTML = data.highlighted_input;
+      document.getElementById("correctedText").innerHTML = data.highlighted_output;
+      document.getElementById("wordCount").innerText = data.word_count;
+      document.getElementById("accuracy").innerText = `${data.accuracy_percent}%`;
+
+    } catch {
+      errorMsg.innerText = "⚠️ Unable to check grammar right now.";
+    } finally {
+      document.getElementById("loadingSpinner").style.display = "none";
+      checkBtn.disabled = false;
+    }
   }
 
-  // ✅ Copy Corrected Text
   function copyText() {
-    const corrected = document.getElementById("correctedText").innerText;
-    navigator.clipboard.writeText(corrected);
+    const text = document.getElementById("correctedText").innerText;
+    navigator.clipboard.writeText(text);
     alert("Corrected text copied!");
   }
 
-  // ✅ Download Corrected Text
   function downloadText() {
-    const corrected = document.getElementById("correctedText").innerText;
-    const blob = new Blob([corrected], { type: 'text/plain' });
-    const link = document.createElement('a');
+    const text = document.getElementById("correctedText").innerText;
+    const blob = new Blob([text], { type: "text/plain" });
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = 'corrected_text.txt';
+    link.download = "corrected_text.txt";
     link.click();
   }
 </script>
 
-
- <footer style="text-align: center; margin-top: 30px; padding: 15px; font-size: 14px; color: #777;">
-    Made with ❤️ by Akshan Goyal | Created on: <strong>June 6, 2025</strong>
-  </footer>
-
+<footer style="text-align:center; margin-top:30px; padding:15px; font-size:14px; color:#777;">
+  Made with ❤️ by Akshan Goyal | Created on: <strong>June 6, 2025</strong>
+</footer>
 
 </body>
 </html>

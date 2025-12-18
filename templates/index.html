@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Grammar Checker</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f6f9;
+    }
+    h2 {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .container {
+      display: flex;
+      padding: 20px;
+      gap: 20px;
+      justify-content: space-around;
+    }
+    .panel {
+      flex: 1;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    .editable {
+      width: 100%;
+      height: 300px;
+      padding: 10px;
+      font-size: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      overflow-y: auto;
+      background-color: white;
+      font-family: 'Courier New', monospace;
+      white-space: pre-wrap;
+    }
+    .editable:empty:before {
+      content: attr(placeholder);
+      color: #aaa;
+    }
+    .btn {
+      margin-top: 10px;
+      padding: 10px 15px;
+      font-size: 15px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background-color: #0056b3;
+    }
+    #loadingSpinner {
+      display: none;
+      margin-top: 10px;
+    }
+    #correctedText {
+      white-space: pre-wrap;
+    }
+    .stats {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h2>✨ Grammar Checker</h2>
+  <div class="container">
+    <!-- Input Panel -->
+    <div class="panel">
+      <h3>📝 Your Text</h3>
+      <div id="inputText" contenteditable="true" class="editable" placeholder="Paste or write your content here..."></div>
+      <div class="stats">
+        Words: <span id="wordCount">0</span> |
+        Accuracy: <span id="accuracy">-</span>
+      </div>
+      <button class="btn" onclick="checkGrammar()">Check Grammar</button>
+      <div id="loadingSpinner">🔄 Checking grammar...</div>
+    </div>
+
+    <!-- Output Panel -->
+    <div class="panel">
+      <h3>✅ Corrected Text</h3>
+      <div id="correctedText"></div>
+      <button class="btn" onclick="copyText()">📋 Copy</button>
+      <button class="btn" onclick="downloadText()">⬇️ Download</button>
+    </div>
+  </div>
+
+  <script>
+  const contentDiv = document.getElementById("inputText");
+
+  // ✅ Update word count on typing and pasting
+  function updateWordCount() {
+    const text = contentDiv.innerText || '';
+    const count = text.trim().split(/\s+/).filter(Boolean).length;
+    document.getElementById("wordCount").innerText = count;
+  }
+
+  contentDiv.addEventListener("keyup", updateWordCount);
+  contentDiv.addEventListener("paste", () => {
+    setTimeout(updateWordCount, 10); // allow paste content to register
+  });
+
+  // ✅ Grammar Check Function
+  async function checkGrammar() {
+    const rawText = contentDiv.innerText;
+
+    if (!rawText.trim()) return;
+
+    document.getElementById("loadingSpinner").style.display = "block";
+    document.getElementById("accuracy").innerText = '-';
+    document.getElementById("correctedText").innerHTML = '';
+
+    const res = await fetch('/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: rawText })
+    });
+
+    const data = await res.json();
+    document.getElementById("loadingSpinner").style.display = "none";
+
+    // Highlighted input and output
+    contentDiv.innerHTML = data.highlighted_input;
+    document.getElementById("correctedText").innerHTML = data.highlighted_output;
+
+    // Update Stats
+    document.getElementById("wordCount").innerText = data.word_count;
+    document.getElementById("accuracy").innerText = `${data.accuracy_percent}%`;
+  }
+
+  // ✅ Copy Corrected Text
+  function copyText() {
+    const corrected = document.getElementById("correctedText").innerText;
+    navigator.clipboard.writeText(corrected);
+    alert("Corrected text copied!");
+  }
+
+  // ✅ Download Corrected Text
+  function downloadText() {
+    const corrected = document.getElementById("correctedText").innerText;
+    const blob = new Blob([corrected], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'corrected_text.txt';
+    link.click();
+  }
+</script>
+
+
+ <footer style="text-align: center; margin-top: 30px; padding: 15px; font-size: 14px; color: #777;">
+    Made with ❤️ by Akshan Goyal | Created on: <strong>June 6, 2025</strong>
+  </footer>
+
+
+</body>
+</html>

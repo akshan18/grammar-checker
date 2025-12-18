@@ -5,8 +5,15 @@ import html
 
 app = Flask(__name__)
 
-# Use LanguageTool Public API (no Java required)
-tool = language_tool_python.LanguageToolPublicAPI('en-US')
+# Global tool (lazy-loaded)
+tool = None
+
+
+def get_tool():
+    global tool
+    if tool is None:
+        tool = language_tool_python.LanguageToolPublicAPI('en-US')
+    return tool
 
 
 @app.route('/')
@@ -19,15 +26,13 @@ def check():
     data = request.get_json()
     original_text = data.get('text', '').strip()
 
-    # Handle empty input
     if not original_text:
-        return jsonify({
-            'error': 'Please enter some text to check.'
-        }), 400
+        return jsonify({'error': 'Please enter some text.'}), 400
 
     try:
-        matches = tool.check(original_text)
-        corrected_text = tool.correct(original_text)
+        lt = get_tool()
+        matches = lt.check(original_text)
+        corrected_text = lt.correct(original_text)
 
     except RateLimitError:
         return jsonify({
@@ -36,26 +41,23 @@ def check():
 
     except Exception:
         return jsonify({
-            'error': 'Something went wrong. Please try again later.'
-        }), 500
+            'error': '⚠️ Grammar service temporarily unavailable. Please try again later.'
+        }), 503
 
-    # Highlight errors in input
+    # Highlight input errors
     highlighted_input = html.escape(original_text)
     offset_shift = 0
-
     for match in matches:
         start = match.offset + offset_shift
         end = start + match.errorLength
         error_text = highlighted_input[start:end]
-
         span = f"<span style='background-color:#ffd6d6'>{error_text}</span>"
         highlighted_input = highlighted_input[:start] + span + highlighted_input[end:]
-
         offset_shift += len(span) - len(error_text)
 
-    # Highlight corrections in output
-    input_words = original_text.split()
+    # Highlight corrected text
     output_words = corrected_text.split()
+    input_words = original_text.split()
 
     highlighted_corrected = []
     for i, word in enumerate(output_words):
@@ -80,5 +82,4 @@ def check():
 
 
 if __name__ == '__main__':
-    # Render handles the server, no debug mode
     app.run(host='0.0.0.0', port=10000)

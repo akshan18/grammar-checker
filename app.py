@@ -3,7 +3,8 @@ import language_tool_python
 import html
 
 app = Flask(__name__)
-tool = language_tool_python.LanguageTool('en-US')
+tool = language_tool_python.LanguageToolPublicAPI('en-US')
+
 
 @app.route('/')
 def index():
@@ -51,3 +52,4 @@ def check():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
